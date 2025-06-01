@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru"><head>
+    <meta charset="utf-8">
+    <title>Задание 2, смирнов Е.</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css"
+    integrity="sha512-M2wvCLH6DSRazYeZRIm1JnYyh22purTM+FDB5CsyxtQJYeKq83arPe5wgbNmcFXGqiSH2XR8dT/fJISVA1r/zQ=="
+    crossorigin=""/>
+
+  <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"
+    integrity="sha512-lInM/apFSqyy1o6s89K4iQUKg6ppXEgsVxT35HbzUupEVRh2Eu9Wdl4tHj7dZO0s1uvplcYGmt3498TtHq+log=="
+    crossorigin=""></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <script src="mos_obl_red.geojson"></script>
+	
+	<style>
+		body {
+		  font-family: 'Segoe UI', Trebuchet MS, sans-serif;
+		  background-color: #f7f7f7;
+		}	
+		
+		header {
+		  background-color: #2c3e50;
+		  color: white;
+		  position: absolute;
+		  left: 0;
+		  right: 0;
+		  top: 0;
+		  height: 60px;
+		  box-sizing: border-box;
+		  padding: 0 20px;
+		  display: flex;
+		  align-items: center;
+		}
+		footer {
+		  background-color: #2c3e50;
+		  color: white;
+		  position: absolute;
+		  width: 100%;
+		  left: 0;
+		  height: 50px;
+		  bottom: 0;
+		  box-sizing: border-box;
+		  padding: 13px 20px;
+		  text-align: right;
+		}
+		main {
+		  position: absolute;
+		  left: 0px;
+		  right: 0px;
+		  top: 60px;
+		  bottom: 50px;	
+		}
+		.cl_white {
+		  color: white;
+		}
+		.w_all {
+		  width: 100%;
+		  margin-bottom: 10px;
+		  padding: 10px;
+		  font-size: 14px;
+		  box-sizing: border-box;
+		  border: 1px solid #ccc;
+		  border-radius: 4px;
+		  background-color: #ffffff;
+		  cursor: pointer;
+		  text-align: center;
+		}
+		.w_all:hover {
+		  background-color: #e6e6e6;
+		}
+		.w_all::placeholder {
+		  color: #999;
+		  opacity: 1; /* Для Firefox */
+		  text-align: center;
+		}
+		.danger {
+		  background-color: #e6f9e6;
+		  border-left: 6px solid #4CAF50;
+		  padding: 8px 12px;
+		  box-sizing: border-box;
+		  margin-bottom: 12px;
+		  border-radius: 4px;
+		  color: #2e7d32;
+		  font-size: 14px;
+		}
+		#menu {
+		  background-color: #ecf0f1;
+		  position: absolute;
+		  left: 0;
+		  width: 250px;
+		  top: 0;
+		  bottom: 0;
+		  box-sizing: border-box;
+		  padding: 20px 15px;
+		  overflow-y: auto;	  
+		}
+		#menu h2 {
+		  margin-top: 0;
+		  font-size: 24px;
+		}
+		#map {
+		  position: absolute;
+		  left: 250px;
+		  right: 0px;
+		  top: 0px;
+		  bottom: 0px;			
+		}
+		
+		@media only screen and (max-device-width : 640px) {
+		  #menu {
+		    display: none;
+		  }
+		  #map {
+		    left: 0px;
+		  }
+		}		
+	</style>
+	
+  </head>
+  <body>
+  
+    <header>
+      <h1>Границы округов Московской области</h1>
+    </header>
+	
+    <main>
+      <div id="menu">
+	    <h2>Меню</h2>
+		
+		<h3>Слои</h3>
+		<!--
+		<div class="danger">
+			<p>В этом задании мы подключаем тайловый слой по протоколу TMS и файл пространственных данных GeoJson</p>
+		</div>
+		-->
+		
+		<input class="w_all" id="elem" type="button" value="Убрать слой границ">
+		<input class="w_all" id="elem2" type="button" value="Добавить слой границ">
+		
+		<h3>Геокодирование</h3>
+		
+		<input class="w_all" id="geocode_text" type="text" placeholder="Введите адрес" value="">
+		<input class="w_all" id="geocode" type="button" value="Найти объект">
+		
+		
+	  </div>
+	  <div id="map"></div>
+    </main>
+	
+    <footer>
+      <span class="cl_white">©Смирнов Евгений Андреевич, 2025</span>
+    </footer>
+	
+	<script>
+		var map = L.map('map').setView([55.753, 37.619], 8);
+
+		var osm = L.tileLayer('http://a.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+		}).addTo(map);
+		
+		var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+
+		var myStyle = {
+			"color": "#6699cc",        //цвет линии
+			"weight": 2,                  //ширина линии в px
+			"opacity": 0.8,            //непрозрачность линии
+			"fillColor": "#d0e1f9", //цвет фона
+			"fillOpacity": 0.4       //непрозрачность фона
+		};
+
+		function onEachFeature(feature, layer) {
+			if (feature.properties && feature.properties.name) {
+				layer.bindPopup('<h3>'+feature.properties.name);
+			}
+		}
+
+		var MosOblBound = L.geoJson(adm, {
+			style: myStyle,
+			onEachFeature: onEachFeature
+		}).addTo(map);
+
+		elem.onclick = function() {
+			map.removeLayer(MosOblBound);
+	    };
+		
+		elem2.onclick = function() {
+			MosOblBound.addTo(map);
+	    };
+		
+		var baseMaps = {
+			"Карта": osm,
+			"Спутник": sat
+		};
+
+		var overlayMaps = {
+			"Московская область": MosOblBound
+		};
+		
+		var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+		
+		var popup = L.popup();
+
+		function onMapClick(e) {
+			popup
+				.setLatLng(e.latlng)
+				.setContent("Координаты клика: " + e.latlng.toString())
+				.openOn(map);
+		}
+
+
+
+map.on('click', onMapClick);
+		
+		geocode.onclick = function() {
+			//alert(geocode_text.value);
+			
+			let url = 'https://nominatim.openstreetmap.org/search?format=json&q='+geocode_text.value;
+		
+			$.ajax({
+				url: 'https://nominatim.openstreetmap.org/search',
+				method: 'get',
+				dataType: 'json',
+				data: {format: 'json',q: geocode_text.value},
+				success: function(data){
+					console.log(data);
+				}
+			});
+
+
+			fetch(url)
+				.then(response => {
+					return response.text();
+				})
+				.then(data => {
+					let json = JSON.parse(data);
+					if (json.length > 0) {
+						console.log(json[0].boundingbox);
+						map.flyToBounds(
+							[
+								[json[0].boundingbox[0], json[0].boundingbox[2]],
+								[json[0].boundingbox[1], json[0].boundingbox[3]]
+							]					
+						);
+						
+						var pinIcon = L.icon({
+
+							iconUrl: 'pin.png',
+							//shadowUrl: 'leaf-shadow.png',
+							iconSize:     [38, 40], // размер значка
+							//shadowSize:   [50, 64], // размер тени
+							iconAnchor:   [19, 40], // точка привязки значка
+							//shadowAnchor: [4, 62],   точка привязки тени
+							popupAnchor:  [0, -40] // точка указателя всплывающего меню
+
+});
+						
+						L.marker([json[0].lat,json[0].lon], {icon: pinIcon}).addTo(map)
+							.bindPopup(json[0].name)
+							.openPopup();
+					} else {
+						alert('Ошибка. Проверьте корректность адреса.');
+					}
+				});
+
+	    };
+
+	</script>
+	
+</body>
+</html>
